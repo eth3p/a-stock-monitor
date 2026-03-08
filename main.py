@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A股监控系统 v1 - CEO 指令完成
-2026-03-04 23:35 启动
+A股监控系统 v6.1 - 数据采集优化
+2026-03-08 优化完成
 """
 
 import json
 import sqlite3
 import time
 import os
+import hashlib
+import pickle
+import functools
 import pandas as pd
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional, Dict, List, Any
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # 配置
 DATA_DIR = Path(__file__).parent / "data"
@@ -20,6 +26,16 @@ DATA_DIR.mkdir(exist_ok=True)
 
 DB_PATH = DATA_DIR / "stocks.db"
 WATCH_LIST_PATH = DATA_DIR / "watch_list.json"
+CACHE_DIR = DATA_DIR / "cache"
+CACHE_DIR.mkdir(exist_ok=True)
+
+# 重试配置
+MAX_RETRIES = 3
+RETRY_BACKOFF_FACTOR = 1.5
+RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+
+# 缓存配置
+CACHE_TTL_SECONDS = 60  # 缓存60秒
 
 # 初始化数据库
 def init_db():
@@ -49,6 +65,95 @@ def init_db():
     conn.commit()
     conn.close()
 
+# 创建带重试的会话
+def create_session_with_retry() -> requests.Session:
+    """创建带重试机制的 requests Session"""
+    session = requests.Session()
+    
+    # 配置重试策略
+    retry_strategy = Retry(
+        total=MAX_RETRIES,
+        read=MAX_RETRIES,
+        connect=MAX_RETRIES,
+        status=MAX_RETRIES,
+        backoff_factor=RETRY_BACKOFF_FACTOR,
+        status_forcelist=RETRY_STATUS_CODES,
+        allowed_methods=["GET", "POST"]
+    )
+    
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    # 设置默认超时
+    session.timeout = 15
+    
+    return session
+
+# 数据缓存模块
+class DataCache:
+    """数据缓存管理器"""
+    
+    def __init__(self, cache_dir: Path, ttl_seconds: int = CACHE_TTL_SECONDS):
+        self.cache_dir = cache_dir
+        self.ttl_seconds = ttl_seconds
+        self._session = create_session_with_retry()
+    
+    def _get_cache_key(self, url: str, params: Dict = None) -> str:
+        """生成缓存键"""
+        cache_str = f"{url}:{json.dumps(params or {}, sort_keys=True)}"
+        return hashlib.md5(cache_str.encode()).hexdigest()
+    
+    def _is_cache_valid(self, cache_file: Path) -> bool:
+        """检查缓存是否有效"""
+        if not cache_file.exists():
+            return False
+        
+        try:
+            mtime = cache_file.stat().st_mtime
+            return (time.time() - mtime) < self.ttl_seconds
+        except:
+            return False
+    
+    def get(self, url: str, params: Dict = None) -> Optional[Any]:
+        """从缓存获取数据"""
+        cache_key = self._get_cache_key(url, params)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        
+        if self._is_cache_valid(cache_file):
+            try:
+                with open(cache_file, 'rb') as f:
+                    return pickle.load(f)
+            except:
+                return None
+        return None
+    
+    def set(self, url: str, params: Dict, data: Any) -> None:
+        """设置缓存数据"""
+        cache_key = self._get_cache_key(url, params)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(data, f)
+        except Exception as e:
+            print(f"[WARN] 缓存写入失败: {e}")
+    
+    def clear_expired(self) -> int:
+        """清理过期缓存"""
+        count = 0
+        for cache_file in self.cache_dir.glob("*.pkl"):
+            if not self._is_cache_valid(cache_file):
+                try:
+                    cache_file.unlink()
+                    count += 1
+                except:
+                    pass
+        return count
+
+# 全局缓存实例
+cache_manager = DataCache(CACHE_DIR)
+
 # 初始化关注列表
 def init_watch_list():
     if not WATCH_LIST_PATH.exists():
@@ -61,9 +166,102 @@ def init_watch_list():
             json.dump(default_stocks, f, indent=2, ensure_ascii=False)
     return json.load(open(WATCH_LIST_PATH))
 
+# 东方财富数据接口
+def fetch_eastmoney_data():
+    """
+    获取东方财富数据（支持_OPTS、 complication 公开接口）
+    增加重试和缓存机制
+    """
+    stock_codes = [
+        "sh600519", "sz000858", "sh601318", "sh601888", "sz300750",
+        "sh600036", "sz000651", "sh600276", "sz000333", "sh600887"
+    ]
+    
+    # 东方财富公开数据接口（示例接口）
+    # 实际使用时可能需要根据具体接口调整
+    url = "https://push2.eastmoney.com/api/qt/clist/get"
+    
+    # 构造请求参数
+    params = {
+        "pn": "1",
+        "pz": "50",
+        "po": "1",
+        "np": "1",
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "fltt": "2",
+        "invt": "2",
+        "fid": "f3",
+        "fs": "m:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23",
+        "fields": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f26,f22,f33,f11,f62,f128,f136,f115,f152"
+    }
+    
+    # 尝试缓存获取
+    cached_data = cache_manager.get(url, params)
+    if cached_data:
+        print("[INFO] 从缓存获取东方财富数据")
+        return parse_eastmoney_response(cached_data)
+    
+    try:
+        session = create_session_with_retry()
+        response = session.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # 缓存结果
+        cache_manager.set(url, params, data)
+        
+        return parse_eastmoney_response(data)
+        
+    except Exception as e:
+        print(f"[ERROR] 获取东方财富数据失败: {e}")
+        return []
+
+def parse_eastmoney_response(data: Dict) -> List[Dict]:
+    """解析东方财富接口返回"""
+    stocks = []
+    
+    try:
+        if not data or "data" not in data or "diff" not in data["data"]:
+            return stocks
+        
+        for item in data["data"]["diff"]:
+            try:
+                stock = {
+                    "code": item.get("f12", ""),
+                    "name": item.get("f14", ""),
+                    "current_price": float(item.get("f2", 0)),
+                    "yesterday_close": float(item.get("f18", 0)),
+                    "change_pct": float(item.get("f3", 0)),
+                    "volume": int(item.get("f5", 0)),
+                    "amount": int(item.get("f6", 0)),
+                    "open_price": float(item.get("f17", 0)),
+                    "high_price": float(item.get("f15", 0)),
+                    "low_price": float(item.get("f16", 0)),
+                    "bid_price": float(item.get("f7", 0)),
+                    "ask_price": float(item.get("f8", 0)),
+                    "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                stocks.append(stock)
+            except Exception as e:
+                continue
+                
+    except Exception as e:
+        print(f"[ERROR] 解析东方财富数据失败: {e}")
+    
+    return stocks
+
 # 获取 A 股实时行情（用腾讯股市接口）
 def fetch_realtime_data():
-    """获取所有 A 股实时行情"""
+    """获取所有 A 股实时行情（带重试和缓存）"""
+    # 尝试从缓存获取
+    url = "http://qt.gtimg.cn/s"
+    params = {"codes": "sh600519,sz000858,sh601318"}  # 示例
+    cached_data = cache_manager.get(url, params)
+    if cached_data:
+        print("[INFO] 从缓存获取腾讯实时行情")
+        return cached_data
+    
     try:
         # 沪深 A 股列表
         url = "https://stock.gtimg.cn/data/index.php"
@@ -95,12 +293,19 @@ def fetch_realtime_data():
         
         # 实时行情接口
         url = f"http://qt.gtimg.cn/s={codes_str}"
-        resp = requests.get(url, headers=headers, timeout=10)
-        if resp.status_code == 200:
-            data = parse_stock_response(resp.text)
-            return data
-        else:
-            return []
+        
+        # 创建会话并请求
+        session = create_session_with_retry()
+        resp = session.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        
+        data = parse_stock_response(resp.text)
+        
+        # 缓存结果
+        cache_manager.set("http://qt.gtimg.cn/s", {"codes": codes_str}, data)
+        
+        return data
+        
     except Exception as e:
         print(f"[ERROR] 获取实时行情失败: {e}")
         return []
@@ -180,6 +385,17 @@ def detect_significant_moves():
     conn.close()
     
     return results
+
+# 清理缓存函数（供外部调用）
+def clear_cache():
+    """清理所有缓存"""
+    try:
+        import shutil
+        shutil.rmtree(CACHE_DIR)
+        CACHE_DIR.mkdir(exist_ok=True)
+        print("[INFO] 缓存已清理")
+    except Exception as e:
+        print(f"[ERROR] 清理缓存失败: {e}")
 
 # 生成新闻关键词
 def generate_news_keywords(stock_name, change_pct):
@@ -281,15 +497,29 @@ def generate_daily_report():
 
 # 主程序
 def main():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 股票监控系统启动")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 股票监控系统 v6.1 启动")
+    print(f"[INFO] 重试机制已启用: 最多 {MAX_RETRIES} 次重试")
+    print(f"[INFO] 数据缓存已启用: TTL {CACHE_TTL_SECONDS} 秒")
     
     # 初始化
     init_db()
     watch_list = init_watch_list()
     
+    # 清理过期缓存
+    expired_count = cache_manager.clear_expired()
+    if expired_count > 0:
+        print(f"[INFO] 清理了 {expired_count} 个过期缓存文件")
+    
     # 实时监控循环
     while True:
-        stocks = fetch_realtime_data()
+        # 尝试获取东方财富数据（优先）
+        stocks = fetch_eastmoney_data()
+        
+        # 如果东方财富数据获取失败，尝试腾讯数据
+        if not stocks:
+            print("[INFO] 东方财富数据获取失败，尝试腾讯数据")
+            stocks = fetch_realtime_data()
+        
         if stocks:
             save_stock_data(stocks)
             
