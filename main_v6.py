@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A股监控系统 v6 - CEO 指令完成
-2026-03-05 18:25 最终版 - 真实数据 + 自动刷新面板
+A股监控系统 v6.1 - 仓位管理集成
+2026-03-08 仓位管理模块集成完成
 """
 
 import json
@@ -12,6 +12,9 @@ import random
 from datetime import datetime, timedelta
 from pathlib import Path
 import requests
+
+# 导入仓位管理模块
+from position_manager import PositionManager, get_position_manager, StockPosition
 
 # 配置
 DATA_DIR = Path(__file__).parent / "data"
@@ -254,6 +257,11 @@ def init_db():
     conn.commit()
     conn.close()
 
+# 初始化仓位管理器
+def init_position_manager():
+    """初始化仓位管理器"""
+    return PositionManager(DATA_DIR)
+
 # 保存数据
 def save_stock_data(stocks):
     conn = sqlite3.connect(DB_PATH)
@@ -275,6 +283,9 @@ def save_stock_data(stocks):
     
     conn.commit()
     conn.close()
+    
+    # 更新仓位管理器中的价格
+    update_positions_with_prices(stocks)
 
 # 检测异常波动
 def detect_opportunities():
@@ -435,11 +446,55 @@ def generate_html_dashboard():
     
     return html
 
+# 更新仓位价格
+def update_positions_with_prices(stocks):
+    """更新仓位管理器中的股票价格"""
+    try:
+        pm = get_position_manager(DATA_DIR)
+        for stock in stocks:
+            code = stock['code']
+            price = stock['current_price']
+            name = stock['name']
+            pm.update_stock_price(code, price, name)
+    except Exception as e:
+        pass  # 仓位管理器可能未初始化
+
+# 更新账户总资金
+def update_account_total(pm: PositionManager, total_equity: float):
+    """更新账户总资金"""
+    pm.update_account(total_equity)
+
+# 检查止损提示
+def check_stop_loss_alerts(pm: PositionManager):
+    """检查止损提示并打印告警"""
+    try:
+        stop_loss_positions = pm.check_stop_loss()
+        if stop_loss_positions:
+            print(f"[止损告警] 检测到 {len(stop_loss_positions)} 只股票触发止损提示:")
+            for code, position in stop_loss_positions:
+                print(f"  ⚠️ {code} {position.name} 亏损 {position.gain_loss_pct:.2%}")
+    except Exception as e:
+        pass
+
+# 生成仓位管理HTML报告
+def generate_position_report(pm: PositionManager) -> str:
+    """生成仓位管理HTML报告"""
+    try:
+        return pm.generate_html_report()
+    except Exception as e:
+        return f"<html><body><h1>仓位报告生成失败: {e}</h1></body></html>"
+
 # 主程序
 def main():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] A股监控系统启动")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] A股监控系统 v6.1 启动")
+    print(f"[INFO] 仓位管理模块已集成")
     
     init_db()
+    pm = init_position_manager()
+    
+    # 设置初始资金（可配置）
+    total_equity = 100000.0  # 10万元初始资金
+    pm.update_account(total_equity)
     
     while True:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 开始采集...")
@@ -453,11 +508,27 @@ def main():
             opportunities = detect_opportunities()
             print(f"[OK] 发现 {len(opportunities)} 个机会")
             
+            # 更新仓位价格并检查止损
+            update_positions_with_prices(stocks)
+            check_stop_loss_alerts(pm)
+            
+            # 更新仓位报告
+            position_html = generate_position_report(pm)
+            position_report_path = DATA_DIR / "position_report.html"
+            with open(position_report_path, 'w') as f:
+                f.write(position_html)
+            print(f"[OK] 仓位报告已更新: {position_report_path}")
+            
+            # 更新主面板
             html = generate_html_dashboard()
             panel_path = DATA_DIR / "dashboard.html"
             with open(panel_path, 'w') as f:
                 f.write(html)
             print(f"[OK] 面板已更新: {panel_path}")
+            
+            # 检查总仓位比例
+            summary = pm.get_position_summary()
+            print(f"[INFO] 总仓位: {summary['总仓位比例']}, 持仓数量: {summary['持仓数量']}")
         
         time.sleep(30)
 
