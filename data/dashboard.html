@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>A股监控面板</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1e1e2e; color: #cdd6f4; margin: 0; padding: 20px; }
+        h1 { color: #89b4fa; margin-bottom: 20px; }
+        .summary { background: #313244; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .summary-item { display: inline-block; margin: 0 20px; font-size: 18px; }
+        .summary-item span { color: #89b4fa; font-weight: bold; }
+        .panel { background: #313244; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .panel h2 { color: #f38ba8; border-bottom: 1px solid #45475a; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #45475a; }
+        th { background: #45475a; color: #f5e0dc; }
+        .trending-up { color: #a6e3a1; }
+        .trending-down { color: #f38ba8; }
+        .score-80 { border-left: 4px solid #a6e3a1; }
+        .score-50 { border-left: 4px solid #f9e2af; }
+    </style>
+</head>
+<body>
+    <h1>📊 A股实时监控面板</h1>
+    
+    <div class="summary">
+        <div class="summary-item">时间: <span>2026-03-06 13:04:51</span></div>
+        <div class="summary-item">观察股票: <span>50</span></div>
+        <div class="summary-item">异常波动: <span class="trending-down">82</span></div>
+        <div class="summary-item">机会提示: <span class="trending-up">33</span></div>
+    </div>
+    
+    <div class="panel">
+        <h2>🔥 涨跌幅 TOP10</h2>
+        <table>
+            <tr><th>代码</th><th>名称</th><th>价格</th><th>涨跌幅</th><th>成交量</th></tr>
+
+            <tr>
+                <td>301680</td>
+                <td>N固德电</td>
+                <td>134.05</td>
+                <td class="trending-up">131.12%</td>
+                <td>147</td>
+            </tr>
+            <tr>
+                <td>301638</td>
+                <td>南网数字</td>
+                <td>28.38</td>
+                <td class="trending-up">20.00%</td>
+                <td>28</td>
+            </tr>
+            <tr>
+                <td>301265</td>
+                <td>华新环保</td>
+                <td>19.80</td>
+                <td class="trending-up">20.00%</td>
+                <td>19</td>
+            </tr>
+            <tr>
+                <td>301205</td>
+                <td>联特科技</td>
+                <td>237.72</td>
+                <td class="trending-up">20.00%</td>
+                <td>237</td>
+            </tr>
+            <tr>
+                <td>301032</td>
+                <td>新柴股份</td>
+                <td>15.13</td>
+                <td class="trending-up">19.98%</td>
+                <td>15</td>
+            </tr>
+            <tr>
+                <td>300903</td>
+                <td>科翔股份</td>
+                <td>37.88</td>
+                <td class="trending-up">19.12%</td>
+                <td>38</td>
+            </tr>
+            <tr>
+                <td>300323</td>
+                <td>华灿光电</td>
+                <td>11.85</td>
+                <td class="trending-up">15.61%</td>
+                <td>12</td>
+            </tr>
+            <tr>
+                <td>300831</td>
+                <td>派瑞股份</td>
+                <td>21.41</td>
+                <td class="trending-up">14.74%</td>
+                <td>21</td>
+            </tr>
+            <tr>
+                <td>301218</td>
+                <td>华是科技</td>
+                <td>36.69</td>
+                <td class="trending-up">14.33%</td>
+                <td>37</td>
+            </tr>
+            <tr>
+                <td>300490</td>
+                <td>华自科技</td>
+                <td>19.45</td>
+                <td class="trending-up">13.34%</td>
+                <td>19</td>
+            </tr></table></div>
+    
+    <div class="panel">
+        <h2>💡 机会提示（评分 ≥60）</h2>
+        <table>
+            <tr><th>代码</th><th>名称</th><th>价格</th><th>涨跌幅</th><th>评分</th><th>理由</th></tr>
+
+            <tr class="score-80">
+                <td>301680</td>
+                <td>N固德电</td>
+                <td>134.05</td>
+                <td class="trending-up">131.12%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301638</td>
+                <td>南网数字</td>
+                <td>28.38</td>
+                <td class="trending-up">20.00%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301265</td>
+                <td>华新环保</td>
+                <td>19.80</td>
+                <td class="trending-up">20.00%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301205</td>
+                <td>联特科技</td>
+                <td>237.72</td>
+                <td class="trending-up">20.00%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301032</td>
+                <td>新柴股份</td>
+                <td>15.13</td>
+                <td class="trending-up">19.98%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300903</td>
+                <td>科翔股份</td>
+                <td>37.88</td>
+                <td class="trending-up">19.12%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300323</td>
+                <td>华灿光电</td>
+                <td>11.85</td>
+                <td class="trending-up">15.61%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300831</td>
+                <td>派瑞股份</td>
+                <td>21.41</td>
+                <td class="trending-up">14.74%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301218</td>
+                <td>华是科技</td>
+                <td>36.69</td>
+                <td class="trending-up">14.33%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300490</td>
+                <td>华自科技</td>
+                <td>19.45</td>
+                <td class="trending-up">13.34%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301045</td>
+                <td>天禄科技</td>
+                <td>48.68</td>
+                <td class="trending-up">12.61%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301085</td>
+                <td>亚康股份</td>
+                <td>66.30</td>
+                <td class="trending-up">12.37%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301235</td>
+                <td>华康洁净</td>
+                <td>56.54</td>
+                <td class="trending-up">12.16%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301373</td>
+                <td>凌玮科技</td>
+                <td>64.80</td>
+                <td class="trending-up">11.28%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300385</td>
+                <td>雪浪环境</td>
+                <td>12.58</td>
+                <td class="trending-up">11.23%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300475</td>
+                <td>香农芯创</td>
+                <td>152.56</td>
+                <td class="trending-up">10.27%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300658</td>
+                <td>延江股份</td>
+                <td>30.24</td>
+                <td class="trending-up">10.24%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>301392</td>
+                <td>汇成真空</td>
+                <td>115.73</td>
+                <td class="trending-up">10.22%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>000516</td>
+                <td>国际医学</td>
+                <td>5.01</td>
+                <td class="trending-up">10.11%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr>
+            <tr class="score-80">
+                <td>300617</td>
+                <td>安靠智电</td>
+                <td>71.68</td>
+                <td class="trending-up">10.11%</td>
+                <td>80</td>
+                <td>涨幅>5%，放量突破</td>
+            </tr></table></div>
+</body>
+</html>

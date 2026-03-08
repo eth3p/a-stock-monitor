@@ -1,0 +1,12 @@
+[
+  {"code": "sh600519", "name": "贵州茅台", "buy_price": 1700.0},
+  {"code": "sz000858", "name": "五粮液", "buy_price": 150.0},
+  {"code": "sh601318", "name": "中国平安", "buy_price": 50.0},
+  {"code": "sz300750", "name": "宁德时代", "buy_price": 200.0},
+  {"code": "sh600036", "name": "招商银行", "buy_price": 35.0},
+  {"code": "sz000651", "name": "格力电器", "buy_price": 45.0},
+  {"code": "sh600276", "name": "恒瑞医药", "buy_price": 45.0},
+  {"code": "sz000333", "name": "美的集团", "buy_price": 70.0},
+  {"code": "sh600887", "name": "伊利股份", "buy_price": 30.0},
+  {"code": "sh601888", "name": "中海达", "buy_price": 10.0}
+]
